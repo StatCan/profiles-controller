@@ -147,11 +147,11 @@ func generateLimitRanges(profile *kubeflowv1.Profile) []*corev1.LimitRange {
 			Limits: []corev1.LimitRangeItem{
 				{
 					Default: corev1.ResourceList{
-						"cpu":    *resource.NewScaledQuantity(250, resource.Milli),
-						"memory": *resource.NewScaledQuantity(256, resource.Mega),
+						"cpu":    *resource.NewScaledQuantity(1000, resource.Milli),
+						"memory": *resource.NewScaledQuantity(20, resource.Giga),
 					},
 					DefaultRequest: corev1.ResourceList{
-						"cpu":    *resource.NewScaledQuantity(250, resource.Milli),
+						"cpu":    *resource.NewScaledQuantity(50, resource.Milli),
 						"memory": *resource.NewScaledQuantity(256, resource.Mega),
 					},
 					Type: "Container",
