@@ -11,6 +11,8 @@ import (
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -57,7 +59,7 @@ var kerberosCmd = &cobra.Command{
 			kubeflowInformerFactory.Kubeflow().V1().Profiles(),
 			func(profile *kubeflowv1.Profile) error {
 				createKerberosConfigs(profile.Namespace)
-				createKerberosNetworkPolicies(profile.Namespace)
+				createKerberosNetworkPolicy(profile.Namespace)
 				return nil
 			},
 		)
@@ -111,8 +113,51 @@ func createKerberosConfigs(namespace string) {
 	// TODO
 }
 
-func createKerberosNetworkPolicies(namespace string) {
-	// TODO
+func createKerberosNetworkPolicy(namespace string) networkingv1.NetworkPolicy {
+	portKDC := intstr.FromInt(88)
+	protocolTCP := corev1.ProtocolTCP
+
+	policy := networkingv1.NetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "allow-egress-to-kerberos-kdc",
+			Namespace: namespace,
+		},
+		Spec: networkingv1.NetworkPolicySpec{
+			PodSelector: metav1.LabelSelector{
+				MatchExpressions: []metav1.LabelSelectorRequirement{
+					{
+						Key:      "notebook-name",
+						Operator: metav1.LabelSelectorOpExists,
+					},
+				},
+			},
+			PolicyTypes: []networkingv1.PolicyType{networkingv1.PolicyTypeEgress},
+			Egress: []networkingv1.NetworkPolicyEgressRule{
+				{
+					Ports: []networkingv1.NetworkPolicyPort{
+						{
+							Protocol: &protocolTCP,
+							Port:     &portKDC,
+						},
+					},
+					To: []networkingv1.NetworkPolicyPeer{
+						{
+							IPBlock: &networkingv1.IPBlock{
+								CIDR: "172.20.60.68/32",
+							},
+						},
+						{
+							IPBlock: &networkingv1.IPBlock{
+								CIDR: "172.20.60.69/32",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	return policy
 }
 
 func init() {
