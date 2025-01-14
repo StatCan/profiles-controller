@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"context"
+	"reflect"
 	"time"
 
 	kubeflowv1 "github.com/StatCan/profiles-controller/pkg/apis/kubeflow/v1"
@@ -11,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	kubeinformers "k8s.io/client-go/informers"
@@ -49,18 +52,19 @@ var kerberosCmd = &cobra.Command{
 		kubeflowInformerFactory := kubeflowinformers.NewSharedInformerFactory(kubeflowClient, time.Minute*(time.Duration(requeue_time)))
 
 		networkPolicyInformer := kubeInformerFactory.Networking().V1().NetworkPolicies()
-		//networkPolicyLister := networkPolicyInformer.Lister()
 
 		configMapInformer := kubeInformerFactory.Core().V1().ConfigMaps()
-		//configMapLister := configMapInformer.Lister()
 
 		// Setup controller
 		controller := profiles.NewController(
 			kubeflowInformerFactory.Kubeflow().V1().Profiles(),
 			func(profile *kubeflowv1.Profile) error {
-				createKerberosConfigs(profile.Namespace)
-				createKerberosNetworkPolicy(profile.Namespace)
-				return nil
+				err := createKerberosConfigMap(profile.Namespace, kubeClient)
+				if err != nil {
+					return err
+				}
+				err = createKerberosNetworkPolicy(profile.Namespace, kubeClient)
+				return err
 			},
 		)
 
@@ -109,11 +113,78 @@ var kerberosCmd = &cobra.Command{
 	},
 }
 
-func createKerberosConfigs(namespace string) {
-	// TODO
+func createKerberosConfigMap(namespace string, kubeClient *kubernetes.Clientset) error {
+	// get the master configmap from the das namespace
+	masterCM, err := kubeClient.CoreV1().ConfigMaps("das").Get(context.Background(), "kerberos-sidecar-config", metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	// find the egress kerberos policy for the given namespace
+	userCM, err := kubeClient.CoreV1().ConfigMaps(namespace).Get(context.Background(), masterCM.Name, metav1.GetOptions{})
+
+	// if CM is not found, create it in the namespace
+	if errors.IsNotFound(err) {
+		klog.Infof("creating config map %s/%s", masterCM.Namespace, masterCM.Name)
+		_, err = kubeClient.CoreV1().ConfigMaps(namespace).Create(context.Background(), masterCM, metav1.CreateOptions{})
+		if err != nil {
+			return err
+		}
+
+		return nil
+	} else if err != nil {
+		return err
+	}
+
+	// if CM is found, but not equal to the master CM, update the CM
+	if !reflect.DeepEqual(masterCM.Data, userCM.Data) {
+		klog.Infof("updating config map %s/%s", masterCM.Namespace, masterCM.Name)
+		userCM.Data = masterCM.Data
+
+		_, err = kubeClient.CoreV1().ConfigMaps(namespace).Update(context.Background(), userCM, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
-func createKerberosNetworkPolicy(namespace string) networkingv1.NetworkPolicy {
+func createKerberosNetworkPolicy(namespace string, kubeClient *kubernetes.Clientset) error {
+	// generate the policy for egress to kerberos
+	policy := generateKerberosNetworkPolicy(namespace)
+
+	// find the egress kerberos policy for the given namespace
+	currentPolicy, err := kubeClient.NetworkingV1().NetworkPolicies(namespace).Get(context.Background(), policy.Name, metav1.GetOptions{})
+
+	// if policy is not found, create it in the namespace
+	if errors.IsNotFound(err) {
+		klog.Infof("creating network policy %s/%s", policy.Namespace, policy.Name)
+		_, err = kubeClient.NetworkingV1().NetworkPolicies(policy.Namespace).Create(context.Background(), &policy, metav1.CreateOptions{})
+		if err != nil {
+			return err
+		}
+
+		return nil
+	} else if err != nil {
+		return err
+	}
+
+	// if policy is found, but not equal to the generated policy, update the policy
+	if !reflect.DeepEqual(policy.Spec, currentPolicy.Spec) {
+		klog.Infof("updating network policy %s/%s", policy.Namespace, policy.Name)
+		currentPolicy.Spec = policy.Spec
+
+		_, err = kubeClient.NetworkingV1().NetworkPolicies(policy.Namespace).Update(context.Background(), currentPolicy, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func generateKerberosNetworkPolicy(namespace string) networkingv1.NetworkPolicy {
 	portKDC := intstr.FromInt(88)
 	protocolTCP := corev1.ProtocolTCP
 
