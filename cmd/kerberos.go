@@ -76,49 +76,49 @@ func generateKerberosConfigMap(namespace string) corev1.ConfigMap {
 		},
 		Data: map[string]string{
 			"krb5.conf": `|-
-    [appdefaults]
-    default_lifetime        = 25hrs
-    krb4_convert            = false
-    krb4_convert_524        = false
- 
-    ksu = {
-    forwardable     = false
-    }
- 
-    pam = {
-    minimum_uid     = 100
-    forwardable     = true
-    }
- 
-    pam-afs-session = {
-    minimum_uid     = 100
-    }
+[appdefaults]
+default_lifetime        = 25hrs
+krb4_convert            = false
+krb4_convert_524        = false
 
-    [logging]
-    default = STDERR
+ksu = {
+forwardable     = false
+}
 
-    [libdefaults]
-    udp_preference_limit=1
-    default_ccache_name=FILE:/dev/shm/ccache
-    default_client_keytab_name=/krb5/client.keytab
-    default_keytab_name=/krb5/krb5.keytab
-    ignore_acceptor_hostname = true
-    rdns = false
-    default_realm = STATCAN.CA
-    dns_lookup_realm = false
-    noaddresses = true
-    ticket_lifetime = 24h
-    renew_lifetime = 7d
-    forwardable = true
- 
-    [realms]
-    STATCAN.CA = {
-    }
- 
-    [domain_realm]
-    statcan.ca = STATCAN.CA
-    .statcan.ca = STATCAN.CA
-	`,
+pam = {
+minimum_uid     = 100
+forwardable     = true
+}
+
+pam-afs-session = {
+minimum_uid     = 100
+}
+
+[logging]
+default = STDERR
+
+[libdefaults]
+udp_preference_limit=1
+default_ccache_name=FILE:/dev/shm/ccache
+default_client_keytab_name=/krb5/client.keytab
+default_keytab_name=/krb5/krb5.keytab
+ignore_acceptor_hostname = true
+rdns = false
+default_realm = STATCAN.CA
+dns_lookup_realm = false
+noaddresses = true
+ticket_lifetime = 24h
+renew_lifetime = 7d
+forwardable = true
+
+[realms]
+STATCAN.CA = {
+}
+
+[domain_realm]
+statcan.ca = STATCAN.CA
+.statcan.ca = STATCAN.CA
+`,
 		},
 	}
 
