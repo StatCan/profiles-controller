@@ -75,7 +75,7 @@ func generateKerberosConfigMap(namespace string) corev1.ConfigMap {
 			Namespace: namespace,
 		},
 		Data: map[string]string{
-			"krb5.conf": `
+			"krb5.conf": `|-
     [appdefaults]
     default_lifetime        = 25hrs
     krb4_convert            = false
