@@ -74,9 +74,8 @@ func generateKerberosConfigMap(namespace string) corev1.ConfigMap {
 			Name:      "kerberos-sidecar-config",
 			Namespace: namespace,
 		},
-		Data: map[string]string{
-			"krb5.conf": `|-
-[appdefaults]
+		Data: map[string]string{ //The lack of indents in the data is important here
+			"krb5.conf": `[appdefaults]
 default_lifetime        = 25hrs
 krb4_convert            = false
 krb4_convert_524        = false
@@ -117,8 +116,7 @@ STATCAN.CA = {
 
 [domain_realm]
 statcan.ca = STATCAN.CA
-.statcan.ca = STATCAN.CA
-`,
+.statcan.ca = STATCAN.CA`,
 		},
 	}
 
