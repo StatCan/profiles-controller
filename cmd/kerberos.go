@@ -48,7 +48,6 @@ var kerberosCmd = &cobra.Command{
 			secret := event.Object.(*corev1.Secret)
 			switch event.Type {
 			case watch.Modified, watch.Added:
-				klog.Infof("%s/secret %s", secret.Namespace, event.Type)
 				err := createKerberosConfigMap(secret.Namespace, kubeClient)
 				if err != nil {
 					klog.Errorf("Error occurred while creating the ConfigMap for namespace %s: %s", secret.Namespace, err.Error())
