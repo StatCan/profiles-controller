@@ -31,7 +31,7 @@ var defaultResources = corev1.ResourceList{
 
 	// Memory
 	"requests.memory": *resource.NewScaledQuantity(96, resource.Giga),
-	"limits.memory":   *resource.NewScaledQuantity(196, resource.Giga),
+	"limits.memory":   *resource.NewScaledQuantity(500, resource.Giga),
 
 	// Storage
 	"requests.storage": *resource.NewScaledQuantity(1, resource.Tera),
